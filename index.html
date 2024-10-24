@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AST Rule Engine</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            max-width: 800px;
+            margin: auto;
+        }
+        .form-section {
+            margin-bottom: 20px;
+        }
+        input, button {
+            margin-bottom: 10px;
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #rules-list {
+            white-space: pre-wrap;
+            background-color: #f4f4f4;
+            padding: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>AST Rule Engine</h1>
+
+    <div class="form-section">
+        <h3>Create Rule</h3>
+        <input type="text" id="create_rule_input" placeholder="Enter your rule here...">
+        <button onclick="createRule()">Create Rule</button>
+        <div id="create_rule_alert"></div>
+    </div>
+
+    <div class="form-section">
+        <h3>Combine Rules</h3>
+        <input type="text" id="combine_rule1_input" placeholder="Enter first rule...">
+        <input type="text" id="combine_rule2_input" placeholder="Enter second rule...">
+        <button onclick="combineRules()">Combine Rules</button>
+        <div id="combine_rule_alert"></div>
+    </div>
+
+    <div class="form-section">
+        <h3>Modify Rule</h3>
+        <input type="number" id="modify_rule_id" placeholder="Enter rule ID...">
+        <input type="text" id="modify_rule_input" placeholder="Enter new rule...">
+        <button onclick="modifyRule()">Modify Rule</button>
+        <div id="modify_rule_alert"></div>
+    </div>
+
+    <div class="form-section">
+        <h3>Evaluate Rule</h3>
+        <input type="text" id="rule_to_evaluate" placeholder="Rule to Evaluate">
+        <input type="number" id="age" placeholder="Age">
+        <input type="text" id="department" placeholder="Department">
+        <input type="number" id="salary" placeholder="Salary">
+        <input type="number" id="experience" placeholder="Experience">
+        <button onclick="evaluateRule()">Evaluate Rule</button>
+        <pre id="evaluate_rule_result"></pre>
+    </div>
+
+    <div class="form-section">
+        <button onclick="fetchAllRules()">Show All Rules</button>
+        <pre id="rules-list"></pre>
+    </div>
+
+    <script>
+        function showAlert(elementId, message, isError = false) {
+            const alertElement = document.getElementById(elementId);
+            alertElement.innerText = message;
+            alertElement.style.color = isError ? 'red' : 'green';
+        }
+
+        function createRule() {
+            const rule = document.getElementById('create_rule_input').value.trim();
+            if (!rule) {
+                showAlert('create_rule_alert', 'Please enter a valid rule!', true);
+                return;
+            }
+            fetch('/create_rule', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rule })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) showAlert('create_rule_alert', data.message);
+                else showAlert('create_rule_alert', data.message, true);
+            })
+            .catch(() => showAlert('create_rule_alert', 'Error creating rule.', true));
+        }
+
+        function combineRules() {
+            const rule1 = document.getElementById('combine_rule1_input').value.trim();
+            const rule2 = document.getElementById('combine_rule2_input').value.trim();
+            if (!rule1 || !rule2) {
+                showAlert('combine_rule_alert', 'Please enter both rules!', true);
+                return;
+            }
+            fetch('/combine_rules', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rule1, rule2 })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) showAlert('combine_rule_alert', data.message);
+                else showAlert('combine_rule_alert', data.message, true);
+            })
+            .catch(() => showAlert('combine_rule_alert', 'Error combining rules.', true));
+        }
+
+        function modifyRule() {
+            const ruleId = document.getElementById('modify_rule_id').value;
+            const newRule = document.getElementById('modify_rule_input').value.trim();
+            if (!ruleId || !newRule) {
+                showAlert('modify_rule_alert', 'Please provide a rule ID and new rule.', true);
+                return;
+            }
+            fetch('/modify_rule', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rule_id: ruleId, new_rule: newRule })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showAlert('modify_rule_alert', data.message, !data.success);
+            })
+            .catch(() => showAlert('modify_rule_alert', 'Error modifying rule.', true));
+        }
+
+        function evaluateRule() {
+            const rule = document.getElementById('rule_to_evaluate').value.trim();
+            const userData = {
+                age: parseInt(document.getElementById('age').value),
+                department: document.getElementById('department').value,
+                salary: parseInt(document.getElementById('salary').value),
+                experience: parseInt(document.getElementById('experience').value)
+            };
+            fetch('/evaluate_rule', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rule, user_data: userData })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('evaluate_rule_result').innerText = `Evaluation Result: ${data.result}`;
+                } else {
+                    showAlert('evaluate_rule_result', data.message, true);
+                }
+            })
+            .catch(() => showAlert('evaluate_rule_result', 'Error evaluating rule.', true));
+        }
+
+        function fetchAllRules() {
+            fetch('/get_all_rules')
+            .then(response => response.json())
+            .then(data => {
+                const formattedRules = data.rules
+                    .map(rule => `ID: ${rule.id}, Rule: ${rule.rule}`)
+                    .join('\n');
+                document.getElementById('rules-list').innerText = formattedRules || 'No rules found.';
+            })
+            .catch(() => showAlert('rules-list', 'Error fetching rules.', true));
+        }
+    </script>
+    <div class="form-section">
+        <h3>Delete Rule</h3>
+        <input type="number" id="delete_rule_id" placeholder="Enter rule ID to delete...">
+        <button onclick="deleteRule()">Delete Rule</button>
+        <div id="delete_rule_alert"></div>
+    </div>
+    
+    <div class="form-section">
+        <h3>Reset All Rules</h3>
+        <button onclick="resetRules()">Reset Rules</button>
+        <div id="reset_rules_alert"></div>
+    </div>
+    
+    <script>
+        function deleteRule() {
+            const ruleId = document.getElementById('delete_rule_id').value;
+            if (!ruleId) {
+                showAlert('delete_rule_alert', 'Please provide a rule ID.', true);
+                return;
+            }
+    
+            fetch('/delete_rule', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rule_id: ruleId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showAlert('delete_rule_alert', data.message, !data.success);
+            })
+            .catch(() => showAlert('delete_rule_alert', 'Error deleting rule.', true));
+        }
+    
+        function resetRules() {
+            fetch('/reset_rules', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                showAlert('reset_rules_alert', data.message, !data.success);
+            })
+            .catch(() => showAlert('reset_rules_alert', 'Error resetting rules.', true));
+        }
+    </script>
+    
+</body>
+</html>
